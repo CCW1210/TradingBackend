@@ -1,6 +1,6 @@
-// BinanceWebSocketClient.java
 package com.example.tradingbackend.service;
 
+import com.example.tradingbackend.model.KlineData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -13,6 +13,11 @@ import org.springframework.stereotype.Service;
 
 import java.net.URI;
 
+/**
+ * BinanceWebSocketClient 負責連線 Binance WebSocket 並處理回傳的行情數據。
+ * 此版本已移除未使用的變數 isClosed 與死程式碼，並保留 TODO 標記以便日後實作交易訊號邏輯。
+ * 基於2025年的最新建議設計。
+ */
 @Slf4j
 @Service
 public class BinanceWebSocketClient {
@@ -23,7 +28,7 @@ public class BinanceWebSocketClient {
     private WebSocketClient client;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SimpMessagingTemplate messagingTemplate;
-    private final RedisStreamService redisStreamService; // 後續會用來寫入 Redis Streams
+    private final RedisStreamService redisStreamService;
 
     public BinanceWebSocketClient(SimpMessagingTemplate messagingTemplate, RedisStreamService redisStreamService) {
         this.messagingTemplate = messagingTemplate;
@@ -47,33 +52,27 @@ public class BinanceWebSocketClient {
                 public void onMessage(String message) {
                     try {
                         JsonNode jsonNode = objectMapper.readTree(message);
-                        // 解析 K 線數據，依據 Binance 資料格式做調整
-                        // 範例：取得 timestamp, open, close, high, low, volume 與交易訊號（假設有此欄位）
                         long timestamp = jsonNode.path("k").path("t").asLong();
                         double open = jsonNode.path("k").path("o").asDouble();
                         double close = jsonNode.path("k").path("c").asDouble();
                         double high = jsonNode.path("k").path("h").asDouble();
                         double low = jsonNode.path("k").path("l").asDouble();
                         double volume = jsonNode.path("k").path("v").asDouble();
-                        boolean isClosed = jsonNode.path("k").path("x").asBoolean();
+                        // 若未來需要判斷 k 線是否收盤，可啟用以下變數
+                        // boolean isClosed = jsonNode.path("k").path("x").asBoolean();
 
-                        // 根據業務邏輯判斷是否有交易訊號
+                        // TODO: 實作交易訊號判斷邏輯，目前預設為 null
                         String tradeSignal = null;
-                        if (/* 判斷條件 */ false) {
-                            tradeSignal = "進場"; // 或 "出場"
-                        }
 
-                        // 封裝數據物件
                         KlineData data = new KlineData(timestamp, open, close, low, high, volume, tradeSignal);
 
-                        // 廣播給前端（/topic/price）
+                        // 廣播數據到前端的 STOMP 頻道 /topic/price
                         messagingTemplate.convertAndSend("/topic/price", data);
 
                         // 寫入 Redis Streams
                         redisStreamService.addKlineData(data);
-
                     } catch (Exception e) {
-                        log.error("解析 Binance 數據失敗", e);
+                        log.error("Failed to process Binance message", e);
                     }
                 }
 
@@ -85,26 +84,25 @@ public class BinanceWebSocketClient {
 
                 @Override
                 public void onError(Exception ex) {
-                    log.error("Binance WebSocket error: ", ex);
+                    log.error("Binance WebSocket error", ex);
                     reconnect();
                 }
             };
 
             client.connect();
         } catch (Exception e) {
-            log.error("建立 Binance WebSocket 連線失敗", e);
+            log.error("Error connecting to Binance WebSocket", e);
             reconnect();
         }
     }
 
-    // 重連機制
     private void reconnect() {
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        log.info("重新連線 Binance WebSocket...");
+        log.info("Reconnecting to Binance WebSocket...");
         connect();
     }
 }
