@@ -29,7 +29,6 @@ public class RedisStreamService {
             message.put("high", data.getHigh());
             message.put("low", data.getLow());
             message.put("volume", data.getVolume());
-            message.put("tradeSignal", data.getTradeSignal());
 
             redisTemplate.opsForStream().add(STREAM_KEY, message);
             log.info("已寫入 Redis Stream：{}", message);

@@ -15,8 +15,6 @@ import java.net.URI;
 
 /**
  * BinanceWebSocketClient 負責連線 Binance WebSocket 並處理回傳的行情數據。
- * 此版本已移除未使用的變數 isClosed 與死程式碼，並保留 TODO 標記以便日後實作交易訊號邏輯。
- * 基於2025年的最新建議設計。
  */
 @Slf4j
 @Service
@@ -61,10 +59,7 @@ public class BinanceWebSocketClient {
                         // 若未來需要判斷 k 線是否收盤，可啟用以下變數
                         // boolean isClosed = jsonNode.path("k").path("x").asBoolean();
 
-                        // TODO: 實作交易訊號判斷邏輯，目前預設為 null
-                        String tradeSignal = null;
-
-                        KlineData data = new KlineData(timestamp, open, close, low, high, volume, tradeSignal);
+                        KlineData data = new KlineData(timestamp, open, close, low, high, volume);
 
                         // 廣播數據到前端的 STOMP 頻道 /topic/price
                         messagingTemplate.convertAndSend("/topic/price", data);
