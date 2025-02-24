@@ -34,15 +34,20 @@ public class KlineSyncService {
     @SuppressWarnings("unchecked")
     @Scheduled(fixedRate = 60000) // 每分鐘執行一次
     public void syncKlineData() {
+        log.info("開始執行同步任務...");
         // 設定讀取選項：最多讀取100筆記錄
         StreamReadOptions options = StreamReadOptions.empty().count(100);
-        // 正確的參數順序為：目標類型, 讀取選項, 流偏移量
         List<MapRecord<String, Object, Object>> records = (List<MapRecord<String, Object, Object>>) (List<?>) redisTemplate
                 .opsForStream()
                 .read(MapRecord.class, options, StreamOffset.fromStart(STREAM_KEY));
         if (records != null && !records.isEmpty()) {
+            log.info("讀取到 {} 筆記錄", records.size());
             for (MapRecord<String, Object, Object> record : records) {
                 try {
+                    // 日誌輸出該筆記錄內容，便於確認資料格式
+                    log.debug("處理記錄：{}", record.getValue());
+
+                    // 轉換數據
                     Long timestamp = Long.parseLong(record.getValue().get("timestamp").toString());
                     Double open = Double.valueOf(record.getValue().get("open").toString());
                     Double close = Double.valueOf(record.getValue().get("close").toString());
@@ -55,11 +60,13 @@ public class KlineSyncService {
 
                     KlineData data = new KlineData(timestamp, open, close, low, high, volume, tradeSignal);
                     repository.save(data);
-                    // 可選：同步後從 Redis Stream 刪除已處理的記錄
+                    log.info("成功同步記錄至 PostgreSQL：{}", data);
                 } catch (Exception e) {
-                    log.error("Failed to sync Kline data", e);
+                    log.error("同步 Kline 數據失敗", e);
                 }
             }
+        } else {
+            log.info("沒有讀取到任何記錄");
         }
     }
 }
