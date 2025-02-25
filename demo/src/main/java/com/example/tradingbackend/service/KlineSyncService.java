@@ -3,8 +3,8 @@ package com.example.tradingbackend.service;
 import com.example.tradingbackend.model.KlineData;
 import com.example.tradingbackend.repository.KlineDataRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.Range;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -26,11 +26,11 @@ public class KlineSyncService {
         this.repository = repository;
     }
 
-    // 使用 range() 方法直接讀取原始記錄（不進行自動映射）
     @Scheduled(fixedRate = 60000) // 每分鐘執行一次
     public void syncKlineData() {
         log.info("開始執行同步任務...");
         try {
+            // 使用 range() 方法讀取整個 stream（使用 unbounded 範圍）
             List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream()
                     .range(STREAM_KEY, Range.unbounded());
 
@@ -42,16 +42,15 @@ public class KlineSyncService {
             log.info("讀取到 {} 筆記錄", records.size());
             for (MapRecord<String, Object, Object> record : records) {
                 try {
-                    // 將原始 hash 轉換成 Map<String, String>
+                    // 將原始 hash 轉換為 Map<String, String>
                     Map<Object, Object> rawHash = record.getValue();
                     Map<String, String> hash = new HashMap<>();
-                    rawHash.forEach((key, value) -> {
-                        hash.put(String.valueOf(key), value == null ? null : String.valueOf(value));
-                    });
+                    rawHash.forEach((key, value) -> hash.put(String.valueOf(key),
+                            value == null ? null : String.valueOf(value)));
 
                     log.debug("處理記錄：{}", hash);
 
-                    // 檢查必要欄位是否存在且不為空（包含 closed 欄位）
+                    // 檢查必要欄位是否存在且不為空
                     if (hash.get("timestamp") == null ||
                             hash.get("open") == null ||
                             hash.get("close") == null ||
@@ -63,16 +62,21 @@ public class KlineSyncService {
                         continue;
                     }
 
+                    // 只有當 K 線已收盤 (closed==true) 時才進行同步
+                    if (!"true".equalsIgnoreCase(hash.get("closed"))) {
+                        log.info("K線未收盤，跳過同步：{}", hash);
+                        continue;
+                    }
+
                     Long timestamp = Long.parseLong(hash.get("timestamp"));
                     Double open = Double.valueOf(hash.get("open"));
                     Double close = Double.valueOf(hash.get("close"));
                     Double low = Double.valueOf(hash.get("low"));
                     Double high = Double.valueOf(hash.get("high"));
                     Double volume = Double.valueOf(hash.get("volume"));
-                    boolean isClosed = Boolean.parseBoolean(hash.get("closed"));
 
                     KlineData data = new KlineData(timestamp, open, close, low, high, volume);
-                    data.setClosed(isClosed);
+                    data.setClosed(true);
 
                     repository.save(data);
                     log.info("成功同步記錄至 PostgreSQL：{}", data);

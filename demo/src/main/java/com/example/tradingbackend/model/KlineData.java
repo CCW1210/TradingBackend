@@ -21,7 +21,7 @@ public class KlineData {
     private Double low;
     private Double high;
     private Double volume;
-    private Boolean closed; // 表示 k 線是否已收盤
+    private Boolean closed; // 表示該根 K 線是否收盤
 
     // 自訂建構子（不包含 closed 欄位，預設 closed 為 false）
     public KlineData(Long timestamp, Double open, Double close, Double low, Double high, Double volume) {

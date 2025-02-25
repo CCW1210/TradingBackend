@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +20,13 @@ public class RedisStreamService {
         this.redisTemplate = redisTemplate;
     }
 
+    @PostConstruct
+    public void clearStream() {
+        // 清除 Redis Stream 中的所有資料
+        redisTemplate.delete(STREAM_KEY);
+        log.info("Cleared Redis Stream: {}", STREAM_KEY);
+    }
+
     public void addKlineData(KlineData data) {
         try {
             Map<String, Object> message = new HashMap<>();
@@ -31,9 +39,9 @@ public class RedisStreamService {
             message.put("closed", data.getClosed());
 
             redisTemplate.opsForStream().add(STREAM_KEY, message);
-            log.info("已寫入 Redis Stream：{}", message);
+            log.info("Added to Redis Stream: {}", message);
         } catch (Exception e) {
-            log.error("寫入 Redis Stream 失敗", e);
+            log.error("Failed to write to Redis Stream", e);
         }
     }
 }
