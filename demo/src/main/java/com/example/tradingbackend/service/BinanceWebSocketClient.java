@@ -46,20 +46,24 @@ public class BinanceWebSocketClient {
                 @Override
                 public void onMessage(String message) {
                     try {
+                        // 解析 JSON 資料，取出 k 線資訊
                         JsonNode jsonNode = objectMapper.readTree(message);
-                        JsonNode kline = jsonNode.path("k");
-                        long timestamp = kline.path("t").asLong();
-                        double open = kline.path("o").asDouble();
-                        double close = kline.path("c").asDouble();
-                        double high = kline.path("h").asDouble();
-                        double low = kline.path("l").asDouble();
-                        double volume = kline.path("v").asDouble();
-                        boolean isClosed = kline.path("x").asBoolean(false);
+                        JsonNode klineNode = jsonNode.path("k");
 
+                        long timestamp = klineNode.path("t").asLong();
+                        double open = klineNode.path("o").asDouble();
+                        double close = klineNode.path("c").asDouble();
+                        double high = klineNode.path("h").asDouble();
+                        double low = klineNode.path("l").asDouble();
+                        double volume = klineNode.path("v").asDouble();
+                        // 直接根據幣安傳入的 x 欄位判斷是否收盤
+                        boolean isClosed = klineNode.path("x").asBoolean();
+
+                        // 建立 KlineData 並設置 closed 狀態
                         KlineData data = new KlineData(timestamp, open, close, low, high, volume);
                         data.setClosed(isClosed);
 
-                        // 廣播到前端 STOMP 頻道
+                        // 廣播數據到前端 STOMP 頻道
                         messagingTemplate.convertAndSend("/topic/price", data);
 
                         // 寫入 Redis Stream
@@ -81,7 +85,6 @@ public class BinanceWebSocketClient {
                     reconnect();
                 }
             };
-
             client.connect();
         } catch (Exception e) {
             log.error("Error connecting to Binance WebSocket", e);
