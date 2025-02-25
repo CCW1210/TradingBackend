@@ -4,7 +4,6 @@ import com.example.tradingbackend.model.KlineData;
 import com.example.tradingbackend.repository.KlineDataRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.Range;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -30,9 +29,10 @@ public class KlineSyncService {
     public void syncKlineData() {
         log.info("開始執行同步任務...");
         try {
-            // 使用 range() 方法讀取整個 stream（使用 unbounded 範圍）
+            // 使用 range() 方法讀取整個 stream，null 代表無邊界限制
+            @SuppressWarnings("null")
             List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream()
-                    .range(STREAM_KEY, Range.unbounded());
+                    .range(STREAM_KEY, null, null);
 
             if (records == null || records.isEmpty()) {
                 log.info("沒有讀取到任何記錄");
@@ -45,8 +45,9 @@ public class KlineSyncService {
                     // 將原始 hash 轉換為 Map<String, String>
                     Map<Object, Object> rawHash = record.getValue();
                     Map<String, String> hash = new HashMap<>();
-                    rawHash.forEach((key, value) -> hash.put(String.valueOf(key),
-                            value == null ? null : String.valueOf(value)));
+                    rawHash.forEach((key, value) -> {
+                        hash.put(String.valueOf(key), value == null ? null : String.valueOf(value));
+                    });
 
                     log.debug("處理記錄：{}", hash);
 
@@ -62,7 +63,7 @@ public class KlineSyncService {
                         continue;
                     }
 
-                    // 只有當 K 線已收盤 (closed==true) 時才進行同步
+                    // 僅同步已收盤的 K 線 (isClosed 為 "true")
                     if (!"true".equalsIgnoreCase(hash.get("closed"))) {
                         log.info("K線未收盤，跳過同步：{}", hash);
                         continue;
