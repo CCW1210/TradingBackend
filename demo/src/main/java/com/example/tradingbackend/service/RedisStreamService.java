@@ -1,4 +1,3 @@
-// RedisStreamService.java
 package com.example.tradingbackend.service;
 
 import com.example.tradingbackend.model.KlineData;
@@ -29,6 +28,7 @@ public class RedisStreamService {
             message.put("high", data.getHigh());
             message.put("low", data.getLow());
             message.put("volume", data.getVolume());
+            message.put("closed", data.getClosed());
 
             redisTemplate.opsForStream().add(STREAM_KEY, message);
             log.info("已寫入 Redis Stream：{}", message);

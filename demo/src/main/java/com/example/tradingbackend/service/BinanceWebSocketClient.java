@@ -50,21 +50,22 @@ public class BinanceWebSocketClient {
                 public void onMessage(String message) {
                     try {
                         JsonNode jsonNode = objectMapper.readTree(message);
+                        // 從 k 線資料中讀取各欄位
                         long timestamp = jsonNode.path("k").path("t").asLong();
                         double open = jsonNode.path("k").path("o").asDouble();
                         double close = jsonNode.path("k").path("c").asDouble();
                         double high = jsonNode.path("k").path("h").asDouble();
                         double low = jsonNode.path("k").path("l").asDouble();
                         double volume = jsonNode.path("k").path("v").asDouble();
-                        // 若未來需要判斷 k 線是否收盤，可啟用以下變數
-                        // boolean isClosed = jsonNode.path("k").path("x").asBoolean();
+                        boolean isClosed = jsonNode.path("k").path("x").asBoolean();
 
                         KlineData data = new KlineData(timestamp, open, close, low, high, volume);
+                        data.setClosed(isClosed);
 
                         // 廣播數據到前端的 STOMP 頻道 /topic/price
                         messagingTemplate.convertAndSend("/topic/price", data);
 
-                        // 寫入 Redis Streams
+                        // 寫入 Redis Streams（會包含 closed 欄位）
                         redisStreamService.addKlineData(data);
                     } catch (Exception e) {
                         log.error("Failed to process Binance message", e);
