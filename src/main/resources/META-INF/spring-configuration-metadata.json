@@ -1,0 +1,29 @@
+{
+    "groups": [
+      {
+        "name": "stomp",
+        "type": "com.example.tradingbackend.config.StompProperties",
+        "sourceType": "com.example.tradingbackend.config.StompProperties"
+      },
+      {
+        "name": "binance",
+        "type": "com.example.tradingbackend.config.BinanceProperties",
+        "sourceType": "com.example.tradingbackend.config.BinanceProperties"
+      }
+    ],
+    "properties": [
+      {
+        "name": "stomp.endpoint",
+        "type": "java.lang.String",
+        "description": "The endpoint for STOMP connections",
+        "defaultValue": "/ws"
+      },
+      {
+        "name": "binance.ws-url",
+        "type": "java.lang.String",
+        "description": "The Binance WebSocket URL",
+        "defaultValue": "wss://stream.binance.com:9443/ws/btcusdt@kline_1m"
+      }
+    ]
+  }
+  
